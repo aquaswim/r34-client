@@ -7,24 +7,27 @@ import (
 	"r34-client/contracts"
 	"r34-client/entities"
 	"r34-client/service/r34"
+	"sync"
 )
 
 type Controller struct {
-	ListPostData binding.UntypedList
-	TotalPage    binding.Int
-	CurrentPage  binding.Int
-	dataSource   contracts.DataSource
-	searchQuery  string
-	l            *log.Logger
+	ListPostData  binding.UntypedList
+	TotalPage     binding.Int
+	CurrentPage   binding.Int
+	dataSource    contracts.DataSource
+	searchQuery   string
+	l             *log.Logger
+	listPostCache sync.Map
 }
 
 func New() *Controller {
 	return &Controller{
-		ListPostData: binding.NewUntypedList(),
-		TotalPage:    binding.NewInt(),
-		CurrentPage:  binding.NewInt(),
-		dataSource:   r34.New(),
-		l:            commons.NewLogger("[CTRL] "),
+		ListPostData:  binding.NewUntypedList(),
+		TotalPage:     binding.NewInt(),
+		CurrentPage:   binding.NewInt(),
+		dataSource:    r34.New(),
+		l:             commons.NewLogger("[CTRL] "),
+		listPostCache: sync.Map{},
 	}
 }
 
@@ -42,9 +45,30 @@ func (c *Controller) ChangePage(page int) {
 	c.fetchPosts()
 }
 
+func (c *Controller) getListPostFromDataSource(param *entities.GetPostsParams) (*entities.PostList, error) {
+	paramHash, err := param.ToHash()
+	if err != nil {
+		return nil, err
+	}
+	// check if it exist in cache
+	val, ok := c.listPostCache.Load(paramHash)
+	if ok {
+		return val.(*entities.PostList), nil
+	}
+
+	resp, err := c.dataSource.ListPosts(param)
+
+	// save to cache when not error
+	if err == nil {
+		c.listPostCache.Store(paramHash, resp)
+	}
+
+	return resp, err
+}
+
 func (c *Controller) fetchPosts() {
 	c.ListPostData.Set(make([]interface{}, 0))
-	response, err := c.dataSource.ListPosts(&entities.GetPostsParams{
+	response, err := c.getListPostFromDataSource(&entities.GetPostsParams{
 		PaginationParam: entities.PaginationParam{
 			PerPage: 42,
 			Page:    c.getCurrentPage(),
@@ -70,4 +94,8 @@ func (c *Controller) fetchPosts() {
 func (c *Controller) getCurrentPage() uint {
 	p, _ := c.CurrentPage.Get()
 	return uint(p)
+}
+
+func (c *Controller) OnClose() {
+
 }

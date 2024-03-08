@@ -27,4 +27,6 @@ func main() {
 
 	w.SetContent(mainWindowContent)
 	w.ShowAndRun()
+
+	ctrl.OnClose()
 }
