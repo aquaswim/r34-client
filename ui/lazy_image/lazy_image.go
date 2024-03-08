@@ -16,6 +16,7 @@ type LazyImage struct {
 	Label *widget.Label
 	Url   string
 	Type  *entities.PostType
+	OnTap func()
 }
 
 func New() *LazyImage {
@@ -79,5 +80,11 @@ func (l *LazyImage) ChangeImage(post *entities.Post) {
 		l.Label.Text = "VID"
 	default:
 		l.Label.Text = ""
+	}
+}
+
+func (l *LazyImage) Tapped(_ *fyne.PointEvent) {
+	if l.OnTap != nil {
+		l.OnTap()
 	}
 }

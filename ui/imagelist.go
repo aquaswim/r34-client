@@ -18,6 +18,12 @@ func ImageList(data binding.UntypedList) fyne.CanvasObject {
 			log.Printf("error getting from untyped binding value: %s", err)
 			return
 		}
-		object.(*lazyImage.LazyImage).ChangeImage(i.(*entities.Post))
+		post := i.(*entities.Post)
+		li := object.(*lazyImage.LazyImage)
+
+		li.ChangeImage(post)
+		li.OnTap = func() {
+			log.Println("tap on id: ", post.ID)
+		}
 	})
 }
