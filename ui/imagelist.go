@@ -9,7 +9,7 @@ import (
 	lazyImage "r34-client/ui/lazy_image"
 )
 
-func ImageList(data binding.UntypedList) fyne.CanvasObject {
+func ImageList(data binding.UntypedList, onImgTap func(id string)) fyne.CanvasObject {
 	return widget.NewGridWrapWithData(data, func() fyne.CanvasObject {
 		return lazyImage.New()
 	}, func(item binding.DataItem, object fyne.CanvasObject) {
@@ -23,7 +23,7 @@ func ImageList(data binding.UntypedList) fyne.CanvasObject {
 
 		li.ChangeImage(post)
 		li.OnTap = func() {
-			log.Println("tap on id: ", post.ID)
+			onImgTap(post.ID)
 		}
 	})
 }

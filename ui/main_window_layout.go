@@ -9,6 +9,7 @@ func NewMainWindowLayout(
 	searchBar fyne.CanvasObject,
 	posts fyne.CanvasObject,
 	pagination fyne.CanvasObject,
+	statusText fyne.CanvasObject,
 ) fyne.CanvasObject {
 	mainContainer := container.NewBorder(
 		nil,
@@ -20,7 +21,7 @@ func NewMainWindowLayout(
 		nil,
 		container.NewBorder(
 			nil,
-			pagination,
+			container.NewHBox(pagination, statusText),
 			nil,
 			nil,
 			posts,
