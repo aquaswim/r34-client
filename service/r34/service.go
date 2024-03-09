@@ -1,10 +1,12 @@
 package r34
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"log"
 	"net/http"
+	urlLib "net/url"
 	"r34-client/commons"
 	"r34-client/contracts"
 	"r34-client/entities"
@@ -130,4 +132,31 @@ func (r r34Svc) getDocumentFromURL(urlStr string) (*goquery.Document, error) {
 		return nil, err
 	}
 	return doc, nil
+}
+
+func (r r34Svc) GetAutoComplete(q string) ([]string, error) {
+	// https://ac.rule34.xxx/autocomplete.php?q=
+	query, _ := urlLib.ParseQuery("")
+	query.Set("q", q)
+	url := fmt.Sprintf("https://ac.rule34.xxx/autocomplete.php?%s", query.Encode())
+
+	response, err := http.Get(url)
+	if err != nil {
+		r.l.Printf("error getting response from %s, err: %s", url, err)
+		return nil, err
+	}
+
+	var respBody []autoCompleteResponseItem
+	err = json.NewDecoder(response.Body).Decode(&respBody)
+	if err != nil {
+		r.l.Printf("error decode response from %s, err: %s", url, err)
+		return nil, err
+	}
+
+	out := make([]string, len(respBody))
+	for i, item := range respBody {
+		out[i] = item.Value
+	}
+
+	return out, nil
 }

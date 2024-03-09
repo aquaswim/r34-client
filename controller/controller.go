@@ -154,3 +154,12 @@ func (c *Controller) DownloadUri(srcUri fyne.URI, writer fyne.URIWriteCloser) {
 	}
 	c.SetStatusText(fmt.Sprintf("%s saved to: %s", srcUri.Name(), writer.URI()))
 }
+
+func (c *Controller) GetAutoComplete(q string) []string {
+	c.SetStatusText("Getting auto complete for: " + q)
+	resp, err := c.dataSource.GetAutoComplete(q)
+	if err != nil {
+		c.SetStatusText(fmt.Sprintf("failed getting auto complete: %s", err))
+	}
+	return resp
+}

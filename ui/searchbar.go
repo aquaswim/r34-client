@@ -4,6 +4,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
+	"strings"
 )
 
 type searchBarLayout struct {
@@ -32,13 +33,40 @@ func (s searchBarLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 	return fyne.NewSize(w, h)
 }
 
-func SearchBar(onSearch func(query string)) fyne.CanvasObject {
-	searchTextInput := widget.NewEntry()
+func SearchBar(onSearch func(query string), getAutoComplete func(q string) []string) fyne.CanvasObject {
+	searchTextInput := NewCompletionEntry([]string{})
+	searchTextInput.OnSubmitted = func(s string) {
+		searchTextInput.Disable()
+		searchTextInput.Options = []string{}
+		defer searchTextInput.Enable()
+
+		tags := strings.Split(searchTextInput.Text, " ")
+		if len(tags) > 0 {
+			searchQuery := tags[len(tags)-1]
+			opt := getAutoComplete(searchQuery)
+			if opt != nil {
+				searchTextInput.Options = opt
+			}
+		}
+
+		searchTextInput.ShowCompletion()
+	}
+	searchTextInput.SetPlaceHolder("enter to show autocomplete")
+	searchTextInput.CustomSetText = func(selectedOpt string) string {
+		tags := strings.Split(searchTextInput.Text, " ")
+		if len(tags) > 0 {
+			tags = tags[:len(tags)-1]
+		}
+		newTags := append(tags, selectedOpt)
+
+		return strings.Join(newTags, " ") + " "
+	}
+
 	searchButton := widget.NewButton("Search", func() {
 		onSearch(searchTextInput.Text)
 	})
 
-	searchTextInput.Resize(fyne.NewSize(128, searchTextInput.MinSize().Height))
+	searchTextInput.Resize(fyne.NewSize(205, searchTextInput.MinSize().Height))
 	searchButton.Resize(searchButton.MinSize())
 
 	c := container.New(&searchBarLayout{padding: 5}, searchTextInput, searchButton)

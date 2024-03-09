@@ -20,6 +20,8 @@ func main() {
 	mainWindowContent := ui.NewMainWindowLayout(
 		ui.SearchBar(func(query string) {
 			ctrl.Search(query)
+		}, func(q string) []string {
+			return ctrl.GetAutoComplete(q)
 		}),
 		ui.ImageList(ctrl.ListPostData, func(id string) {
 			srcUri := ctrl.ResolvePostIDDownloadURI(id)
