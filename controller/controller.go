@@ -9,6 +9,7 @@ import (
 	"r34-client/contracts"
 	"r34-client/entities"
 	"r34-client/service/r34"
+	lazyImage "r34-client/ui/lazy_image"
 	"sync"
 	"time"
 )
@@ -162,4 +163,21 @@ func (c *Controller) GetAutoComplete(q string) []string {
 		c.SetStatusText(fmt.Sprintf("failed getting auto complete: %s", err))
 	}
 	return resp
+}
+
+func (c *Controller) ClearCache() {
+	c.SetStatusText("Clearing all cache")
+	// do clear all cache here
+	err := lazyImage.ClearCache()
+	if err != nil {
+		c.SetStatusText(fmt.Sprintf("Error clearing cache: %s", err))
+	}
+
+	// reset all param
+	c.ListPostData.Set([]interface{}{})
+	c.TotalPage.Set(1)
+	c.CurrentPage.Set(1)
+	c.searchQuery = ""
+	c.listPostCache = sync.Map{}
+	c.SetStatusText("Cache cleared")
 }

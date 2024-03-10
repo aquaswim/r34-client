@@ -47,6 +47,7 @@ func main() {
 		}),
 		widget.NewLabelWithData(ctrl.StatusText),
 	)
+	w.SetMainMenu(ui.NewMainMenu(ctrl))
 	// set all event handler or some shit
 
 	w.SetContent(mainWindowContent)

@@ -29,12 +29,16 @@ func init() {
 	}
 	downloader.downloadPath = path.Join(usrCacheDir, "r34-client")
 	l.Printf("will use this path for cache: %s", downloader.downloadPath)
-	err = os.MkdirAll(downloader.downloadPath, os.ModePerm)
-	if err != nil {
-		l.Fatalf("error MkdirAll %s: %s", downloader.downloadPath, err)
-	}
+	createCacheDirectory(downloader.downloadPath)
 	// initialize locks
 	downloader.fileLocks = sync.Mutex{}
+}
+
+func createCacheDirectory(cachePath string) {
+	err := os.MkdirAll(cachePath, os.ModePerm)
+	if err != nil {
+		l.Fatalf("error MkdirAll %s: %s", cachePath, err)
+	}
 }
 
 func DownloadAndGetOutputFilePath(url string) (string, error) {
@@ -84,4 +88,11 @@ func genHashFileURI(uri fyne.URI) fyne.URI {
 	outFileName := fmt.Sprintf("%s%s", hashedStr, uri.Extension())
 
 	return storage.NewFileURI(path.Join(downloader.downloadPath, outFileName))
+}
+
+func ClearCache() error {
+	downloader.fileLocks.Lock()
+	defer downloader.fileLocks.Unlock()
+	defer createCacheDirectory(downloader.downloadPath)
+	return os.RemoveAll(downloader.downloadPath)
 }
