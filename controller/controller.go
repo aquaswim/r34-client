@@ -5,7 +5,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/storage"
-	"io"
+	"path"
 	"r34-client/contracts"
 	"r34-client/entities"
 	"r34-client/service/r34"
@@ -15,23 +15,25 @@ import (
 )
 
 type Controller struct {
-	ListPostData  binding.UntypedList
-	TotalPage     binding.Int
-	CurrentPage   binding.Int
-	dataSource    contracts.DataSource
-	searchQuery   string
-	listPostCache sync.Map
-	StatusText    binding.String
+	ListPostData    binding.UntypedList
+	TotalPage       binding.Int
+	CurrentPage     binding.Int
+	dataSource      contracts.DataSource
+	searchQuery     string
+	listPostCache   sync.Map
+	StatusText      binding.String
+	DownloadPostIds binding.StringList
 }
 
 func New() *Controller {
 	return &Controller{
-		ListPostData:  binding.NewUntypedList(),
-		TotalPage:     binding.NewInt(),
-		CurrentPage:   binding.NewInt(),
-		StatusText:    binding.NewString(),
-		dataSource:    r34.New(),
-		listPostCache: sync.Map{},
+		ListPostData:    binding.NewUntypedList(),
+		TotalPage:       binding.NewInt(),
+		CurrentPage:     binding.NewInt(),
+		StatusText:      binding.NewString(),
+		DownloadPostIds: binding.NewStringList(),
+		dataSource:      r34.New(),
+		listPostCache:   sync.Map{},
 	}
 }
 
@@ -112,50 +114,6 @@ func (c *Controller) OnClose() {
 
 }
 
-func (c *Controller) ResolvePostIDDownloadURI(id string) fyne.URI {
-	c.SetStatusText(fmt.Sprintf("getting detail of postid: %s", id))
-	postDetail, err := c.dataSource.GetPostByID(id)
-	if err != nil {
-		c.SetStatusText(fmt.Sprintf("error getting postId %s: %s", id, err))
-		return nil
-	}
-
-	uri, err := storage.ParseURI(postDetail.FullSizeURL)
-	if err != nil {
-		c.SetStatusText(fmt.Sprintf("error parseurl %s: %s", postDetail.FullSizeURL, err))
-		return nil
-	}
-
-	return uri
-}
-
-func (c *Controller) DownloadUri(srcUri fyne.URI, writer fyne.URIWriteCloser) {
-	defer writer.Close()
-	write, err := storage.CanWrite(writer.URI())
-	if err != nil {
-		c.SetStatusText(fmt.Sprintf("error %s getting info writable for file: %s", writer.URI(), err))
-		return
-	}
-	if write != true {
-		c.SetStatusText(fmt.Sprintf("file %s not writeable", writer.URI()))
-		return
-	}
-
-	c.SetStatusText(fmt.Sprintf("saving %s to %s", srcUri.Name(), writer.URI()))
-	reader, err := storage.Reader(srcUri)
-	if err != nil {
-		c.SetStatusText(fmt.Sprintf("error reading %s: %s", reader.URI(), err))
-		return
-	}
-	defer reader.Close()
-	_, err = io.Copy(writer, reader)
-	if err != nil {
-		c.SetStatusText(fmt.Sprintf("error saving %s to %s", reader.URI(), writer.URI()))
-		return
-	}
-	c.SetStatusText(fmt.Sprintf("%s saved to: %s", srcUri.Name(), writer.URI()))
-}
-
 func (c *Controller) GetAutoComplete(q string) []string {
 	c.SetStatusText("Getting auto complete for: " + q)
 	resp, err := c.dataSource.GetAutoComplete(q)
@@ -180,4 +138,84 @@ func (c *Controller) ClearCache() {
 	c.searchQuery = ""
 	c.listPostCache = sync.Map{}
 	c.SetStatusText("Cache cleared")
+}
+
+func (c *Controller) AddToDownloadList(postId string) {
+	// get for duplicates
+	existingIds, err := c.DownloadPostIds.Get()
+	if err != nil {
+		c.SetStatusText(fmt.Sprintf("internal error: %s", err))
+	}
+	for _, id := range existingIds {
+		if id == postId {
+			c.SetStatusText("post id already exists")
+			return
+		}
+	}
+	err = c.DownloadPostIds.Append(postId)
+	if err != nil {
+		c.SetStatusText(fmt.Sprintf("internal error: %s", err))
+		return
+	}
+	c.SetStatusText(fmt.Sprintf("post id %s added to download list", postId))
+}
+
+func (c *Controller) DownloadAllInList(outputFolder fyne.ListableURI) {
+	if !c.IsDownloadListNotEmpty() {
+		return
+	}
+
+	postIds, err := c.DownloadPostIds.Get()
+	if err != nil {
+		c.SetStatusText(fmt.Sprintf("internal error: %s", err))
+	}
+
+	details, err := c.getPostIdsDetails(postIds)
+	if err != nil {
+		c.SetStatusText(fmt.Sprintf("Error getting post details: %s", err))
+		return
+	}
+
+	for _, detail := range details {
+		c.SetStatusText(fmt.Sprintf("processing postid: %s", detail.ID))
+		srcUri, err := storage.ParseURI(detail.FullSizeURL)
+		if err != nil {
+			c.SetStatusText(fmt.Sprintf("Error parsing url of post %s, err: %s", detail.ID, err))
+			return
+		}
+		outFile := path.Join(outputFolder.Path(), detail.ID+srcUri.Extension())
+		writer, err := storage.Writer(storage.NewFileURI(outFile))
+		if err != nil {
+			c.SetStatusText(fmt.Sprintf("error write to file %s, err: %s", outFile, err))
+		}
+		c.downloadUri(srcUri, writer)
+		// clear item from list
+		c.removeDownloadListByValue(detail.ID)
+	}
+	c.SetStatusText("all item downloaded")
+}
+
+func (c *Controller) IsDownloadListNotEmpty() bool {
+	return c.DownloadPostIds.Length() > 0
+}
+
+func (c *Controller) removeDownloadListByValue(id string) {
+	postIds, err := c.DownloadPostIds.Get()
+	if err != nil {
+		c.SetStatusText(fmt.Sprintf("internal error: %s", err))
+		return
+	}
+	newList := []string{}
+	for _, postId := range postIds {
+		if postId == id {
+			continue
+		}
+		newList = append(newList, postId)
+	}
+
+	err = c.DownloadPostIds.Set(newList)
+	if err != nil {
+		c.SetStatusText(fmt.Sprintf("internal error: %s", err))
+		return
+	}
 }

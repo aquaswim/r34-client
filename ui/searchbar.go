@@ -66,7 +66,7 @@ func SearchBar(onSearch func(query string), getAutoComplete func(q string) []str
 		onSearch(searchTextInput.Text)
 	})
 
-	searchTextInput.Resize(fyne.NewSize(205, searchTextInput.MinSize().Height))
+	searchTextInput.Resize(fyne.NewSize(300, searchTextInput.MinSize().Height))
 	searchButton.Resize(searchButton.MinSize())
 
 	c := container.New(&searchBarLayout{padding: 5}, searchTextInput, searchButton)

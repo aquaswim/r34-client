@@ -10,14 +10,12 @@ func NewMainWindowLayout(
 	posts fyne.CanvasObject,
 	pagination fyne.CanvasObject,
 	statusText fyne.CanvasObject,
+	sidebar fyne.CanvasObject,
 ) fyne.CanvasObject {
 	mainContainer := container.NewBorder(
+		container.NewCenter(searchBar),
 		nil,
-		nil,
-		container.NewVBox(
-			searchBar,
-			// download list TBA
-		),
+		sidebar,
 		nil,
 		container.NewBorder(
 			nil,
